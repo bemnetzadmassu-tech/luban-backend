@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Luban Coffee – Verify Authenticity</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f3f2ef;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .card {
+            background: white;
+            max-width: 500px;
+            width: 100%;
+            padding: 40px 30px;
+            border-radius: 32px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        h1 {
+            color: #1a3a32;
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+        .sub {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        input {
+            width: 100%;
+            padding: 14px 18px;
+            font-size: 16px;
+            font-family: 'Courier New', monospace;
+            border: 2px solid #ddd;
+            border-radius: 40px;
+            margin-bottom: 16px;
+            transition: 0.2s;
+        }
+        input:focus {
+            border-color: #D4AF37;
+            outline: none;
+        }
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #D4AF37, #B8860B);
+            color: #1a1a2e;
+            border: none;
+            border-radius: 40px;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.05);
+        }
+        #result {
+            margin-top: 24px;
+            padding: 16px;
+            border-radius: 16px;
+            text-align: left;
+            display: none;
+        }
+        .success {
+            display: block !important;
+            background: #e6f7e6;
+            border-left: 4px solid #2ecc71;
+        }
+        .error {
+            display: block !important;
+            background: #fde8e8;
+            border-left: 4px solid #e74c3c;
+        }
+        .detail { font-size: 14px; margin-top: 8px; }
+        .detail span { font-weight: bold; }
+        .brand { color: #D4AF37; font-weight: bold; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>☕ Luban Coffee</h1>
+        <p class="sub">Verify the authenticity of your coffee bag</p>
+        <input type="text" id="barcodeInput" placeholder="Enter barcode (e.g., LBN-500-00001)" />
+        <button onclick="verify()">🔍 Verify</button>
+        <div id="result"></div>
+        <div class="brand">Ethiopian Premium Coffee</div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://luban-barcode-system.vercel.app/api';
+
+        async function verify() {
+            const input = document.getElementById('barcodeInput');
+            const resultDiv = document.getElementById('result');
+            const barcode = input.value.trim();
+
+            if (!barcode) {
+                resultDiv.className = 'error';
+                resultDiv.innerHTML = '❌ Please enter a barcode.';
+                resultDiv.style.display = 'block';
+                return;
+            }
+
+            resultDiv.className = '';
+            resultDiv.innerHTML = '⏳ Checking...';
+            resultDiv.style.display = 'block';
+
+            try {
+                const res = await fetch(`${API_BASE}/verify/${barcode}`);
+                const data = await res.json();
+
+                if (data.valid) {
+                    const p = data.product;
+                    resultDiv.className = 'success';
+                    resultDiv.innerHTML = `
+                        ✅ <strong>AUTHENTIC PRODUCT</strong>
+                        <div class="detail">Origin: <span>${p.origin}</span></div>
+                        <div class="detail">Batch: <span>${p.batch}</span></div>
+                        <div class="detail">Weight: <span>${p.weight}g</span></div>
+                        <div class="detail">Roast: <span>${p.roast}</span></div>
+                        <div class="detail">Status: <span>${p.is_sold ? 'Sold ✓' : 'Available'}</span></div>
+                        <div class="detail">Verifications: <span>${p.verified_count}</span></div>
+                        <div style="margin-top:12px; font-size:13px; color:#2ecc71;">✅ Verified by Luban Coffee</div>
+                    `;
+                } else {
+                    resultDiv.className = 'error';
+                    resultDiv.innerHTML = `❌ ${data.message || 'Invalid or counterfeit barcode'}`;
+                }
+            } catch (e) {
+                resultDiv.className = 'error';
+                resultDiv.innerHTML = '❌ Network error. Please try again.';
+            }
+        }
+
+        // Allow Enter key
+        document.getElementById('barcodeInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') verify();
+        });
+    </script>
+</body>
+</html>
