@@ -241,10 +241,11 @@ function fallbackDownloadPNG(svgId, barcode) {
 }
 
 // ============================================
-// FALLBACK QR – Uses config
+// FALLBACK QR – Uses BACKEND_URL (not frontend)
 // ============================================
 function fallbackDownloadQR(barcode) {
     const config = getConfig();
+    // Use BACKEND_URL, not FRONTEND_URL
     const backendUrl = config.BACKEND_URL || 'https://luban-backend.vercel.app';
     const verifyPage = config.VERIFY_PAGE || '/verify-public.html';
     const url = `${backendUrl}${verifyPage}?barcode=${encodeURIComponent(barcode)}`;
