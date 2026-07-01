@@ -1,70 +1,176 @@
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const jwt = require('jsonwebtoken');
-const path = require('path');
-require('dotenv').config();
-
-const app = express();
-app.use(helmet());
-app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
-app.use(express.json({ limit: '10mb' }));
-
-// Route handlers
-const generateHandler = require('./generate');
-const registerBatchHandler = require('./register-batch');
-const verifyHandler = require('./verify');
-const soldHandler = require('./sold');
-const barcodesHandler = require('./barcodes');
-const statsHandler = require('./stats');
-const exportPosFeedHandler = require('./export-pos-feed');
-const deleteHandler = require('./delete');
-const deleteAllHandler = require('./delete').deleteAll;
-
 // ============================================
-// DEBUG: Check handler types
+// ROOT LANDING PAGE
 // ============================================
-console.log('🔍 Checking handler types:');
-console.log('generateHandler:', typeof generateHandler);
-console.log('registerBatchHandler:', typeof registerBatchHandler);
-console.log('verifyHandler:', typeof verifyHandler);
-console.log('soldHandler:', typeof soldHandler);
-console.log('barcodesHandler:', typeof barcodesHandler);
-console.log('statsHandler:', typeof statsHandler);
-console.log('exportPosFeedHandler:', typeof exportPosFeedHandler);
-console.log('deleteHandler:', typeof deleteHandler);
-console.log('deleteAllHandler:', typeof deleteAllHandler);
-console.log('✅ All handlers loaded');
+app.get('/', (req, res) => {
+    res.send(`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Luban Coffee – Backend API</title>
+            <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body {
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    background: #1a1a2e;
+                    color: #f0f0f0;
+                    min-height: 100vh;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    padding: 20px;
+                }
+                .container {
+                    max-width: 800px;
+                    width: 100%;
+                    text-align: center;
+                }
+                .logo {
+                    font-size: 64px;
+                    margin-bottom: 10px;
+                }
+                h1 {
+                    color: #D4AF37;
+                    font-size: 42px;
+                    margin-bottom: 10px;
+                }
+                .subtitle {
+                    color: #b9c3e6;
+                    font-size: 18px;
+                    margin-bottom: 30px;
+                }
+                .status {
+                    display: inline-block;
+                    background: #2ecc71;
+                    color: #1a1a2e;
+                    padding: 6px 20px;
+                    border-radius: 40px;
+                    font-weight: bold;
+                    font-size: 14px;
+                    margin-bottom: 30px;
+                }
+                .card {
+                    background: rgba(255,255,255,0.05);
+                    border-radius: 24px;
+                    padding: 30px;
+                    margin: 20px 0;
+                    border: 1px solid rgba(255,255,255,0.08);
+                }
+                .card h2 {
+                    color: #D4AF37;
+                    font-size: 20px;
+                    margin-bottom: 15px;
+                }
+                .endpoint-grid {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 12px;
+                    text-align: left;
+                }
+                .endpoint-item {
+                    background: rgba(255,255,255,0.05);
+                    padding: 10px 14px;
+                    border-radius: 12px;
+                    font-family: 'Courier New', monospace;
+                    font-size: 13px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+                .endpoint-item .method {
+                    font-weight: bold;
+                    padding: 2px 10px;
+                    border-radius: 30px;
+                    font-size: 11px;
+                }
+                .method-get { background: #2ecc71; color: #1a1a2e; }
+                .method-post { background: #f39c12; color: #1a1a2e; }
+                .method-delete { background: #e74c3c; color: white; }
+                .endpoint-item .path {
+                    color: #D4AF37;
+                }
+                .btn {
+                    display: inline-block;
+                    background: #D4AF37;
+                    color: #1a1a2e;
+                    padding: 12px 28px;
+                    border-radius: 40px;
+                    text-decoration: none;
+                    font-weight: bold;
+                    margin: 10px 5px;
+                    transition: 0.2s;
+                }
+                .btn:hover {
+                    transform: translateY(-2px);
+                    filter: brightness(1.05);
+                }
+                .btn-secondary {
+                    background: transparent;
+                    border: 2px solid #D4AF37;
+                    color: #D4AF37;
+                }
+                .footer {
+                    margin-top: 40px;
+                    color: #666;
+                    font-size: 13px;
+                    border-top: 1px solid rgba(255,255,255,0.06);
+                    padding-top: 20px;
+                }
+                .footer a {
+                    color: #D4AF37;
+                    text-decoration: none;
+                }
+                @media (max-width: 600px) {
+                    .endpoint-grid { grid-template-columns: 1fr; }
+                    h1 { font-size: 28px; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="logo">☕</div>
+                <h1>Luban Coffee</h1>
+                <div class="subtitle">Ethiopian Premium Coffee – Backend API</div>
+                <div class="status">● Server Running</div>
 
-// ============================================
-// AUTH & HEALTH ENDPOINTS
-// ============================================
-app.post('/api/login', (req, res) => {
-    const { password } = req.body;
-    const expected = process.env.ADMIN_PASSWORD;
-    if (!expected) return res.status(500).json({ error: 'Admin password not set' });
-    if (password === expected) {
-        const token = jwt.sign({ admin: true }, process.env.JWT_SECRET, { expiresIn: '24h' });
-        return res.json({ success: true, token });
-    }
-    res.status(401).json({ error: 'Invalid password' });
+                <div class="card">
+                    <h2>📡 API Endpoints</h2>
+                    <div class="endpoint-grid">
+                        <div class="endpoint-item"><span class="method method-get">GET</span><span class="path">/api/health</span></div>
+                        <div class="endpoint-item"><span class="method method-post">POST</span><span class="path">/api/login</span></div>
+                        <div class="endpoint-item"><span class="method method-get">GET</span><span class="path">/api/verify/:barcode</span></div>
+                        <div class="endpoint-item"><span class="method method-get">GET</span><span class="path">/api/stats</span></div>
+                        <div class="endpoint-item"><span class="method method-post">POST</span><span class="path">/api/generate</span></div>
+                        <div class="endpoint-item"><span class="method method-post">POST</span><span class="path">/api/register-batch</span></div>
+                        <div class="endpoint-item"><span class="method method-get">GET</span><span class="path">/api/barcodes</span></div>
+                        <div class="endpoint-item"><span class="method method-get">GET</span><span class="path">/api/export-pos-feed</span></div>
+                        <div class="endpoint-item"><span class="method method-delete">DELETE</span><span class="path">/api/barcode/:barcode</span></div>
+                        <div class="endpoint-item"><span class="method method-delete">DELETE</span><span class="path">/api/barcodes/all</span></div>
+                    </div>
+                </div>
+
+                <div class="card" style="border-color: #D4AF37;">
+                    <h2>🔐 Admin Panel</h2>
+                    <p style="color: #aaa; margin-bottom: 15px;">Manage barcodes, EUDR data, and inventory</p>
+                    <a href="/admin/login.html" class="btn">🔑 Login to Admin</a>
+                </div>
+
+                <div class="card">
+                    <h2>🧑‍🤝‍🧑 Public Pages</h2>
+                    <p style="color: #aaa; margin-bottom: 15px;">Verify your coffee – no login required</p>
+                    <a href="/admin/verify-public.html" class="btn btn-secondary">🔍 Verify Product</a>
+                </div>
+
+                <div class="footer">
+                    <p>© 2025 Luban Coffee – Addis Ababa, Ethiopia</p>
+                    <p style="margin-top:4px;">
+                        <a href="https://luban-coffee.vercel.app">Frontend</a> &bull;
+                        <a href="https://github.com/bemnetzadmassu-tech/luban-backend">GitHub</a>
+                    </p>
+                </div>
+            </div>
+        </body>
+        </html>
+    `);
 });
-
-app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', message: 'Server is running' });
-});
-
-// ============================================
-// API ROUTES
-// ============================================
-app.post('/api/generate', generateHandler);
-app.post('/api/register-batch', registerBatchHandler);
-app.get('/api/verify/:barcode', verifyHandler);
-app.post('/api/sold', soldHandler);
-app.get('/api/barcodes', barcodesHandler);
-app.get('/api/stats', statsHandler);
-app.get('/api/export-pos-feed', exportPosFeedHandler);
-app.delete('/api/barcode/:barcode', deleteHandler);
-app.delete('/api/barcodes/all', deleteAllHandler);
-
-module.exports = app;
