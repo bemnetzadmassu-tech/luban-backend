@@ -1,11 +1,12 @@
 // ============================================
-// GET CONFIG (dynamic)
+// GET CONFIG
 // ============================================
 function getConfig() {
     return window.LUBAN_CONFIG || {
         API_BASE: 'https://luban-backend.vercel.app/api',
         BACKEND_URL: 'https://luban-backend.vercel.app',
-        FRONTEND_URL: 'https://luban-coffee.vercel.app'
+        FRONTEND_URL: 'https://luban-coffee.vercel.app',
+        VERIFY_PAGE: '/verify-public.html'
     };
 }
 
@@ -183,21 +184,26 @@ window.downloadPNG = async function(svgId, barcode) {
 };
 
 // ============================================
-// DOWNLOAD QR (points to backend verify-public.html)
+// DOWNLOAD QR – Uses config for all routing
 // ============================================
 window.downloadQR = async function(barcode) {
-    // Use BACKEND_URL from config
-    const config = window.LUBAN_CONFIG || {
-        BACKEND_URL: 'https://luban-backend.vercel.app'
-    };
-    const baseUrl = config.BACKEND_URL + '/verify-public.html';
-    const url = `${baseUrl}?barcode=${encodeURIComponent(barcode)}`;
-    const qrApi = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}`;
+    const config = getConfig();
+    const API_BASE = config.API_BASE;
     
-    const link = document.createElement('a');
-    link.href = qrApi;
-    link.download = `${barcode}-qr.png`;
-    link.click();
+    try {
+        const res = await fetch(`${API_BASE}/image/${barcode}/qr`);
+        const data = await res.json();
+        if (data.success && data.image) {
+            const link = document.createElement('a');
+            link.href = data.image;
+            link.download = `${barcode}-qr.png`;
+            link.click();
+            return;
+        }
+        fallbackDownloadQR(barcode);
+    } catch (err) {
+        fallbackDownloadQR(barcode);
+    }
 };
 
 // ============================================
@@ -236,16 +242,14 @@ function fallbackDownloadPNG(svgId, barcode) {
 }
 
 // ============================================
-// FALLBACK QR (points to backend verify-public.html)
+// FALLBACK QR – Uses config
 // ============================================
 function fallbackDownloadQR(barcode) {
-    const config = window.LUBAN_CONFIG || {
-        BACKEND_URL: 'https://luban-backend.vercel.app'
-    };
-    const baseUrl = config.BACKEND_URL + '/verify-public.html';
-    const url = `${baseUrl}?barcode=${encodeURIComponent(barcode)}`;
+    const config = getConfig();
+    const backendUrl = config.BACKEND_URL || 'https://luban-backend.vercel.app';
+    const verifyPage = config.VERIFY_PAGE || '/verify-public.html';
+    const url = `${backendUrl}${verifyPage}?barcode=${encodeURIComponent(barcode)}`;
     const qrApi = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}`;
-    
     const link = document.createElement('a');
     link.href = qrApi;
     link.download = `${barcode}-qr.png`;

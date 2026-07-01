@@ -93,13 +93,25 @@
         <button onclick="verify()">🔍 Verify</button>
         <div id="result"></div>
         <div class="brand">Ethiopian Premium Coffee</div>
+        <!-- Dynamic Back to Home Button -->
+        <a href="#" id="homeLink" class="back-link">
+            <span>🏠</span> Back to Home
+        </a>
     </div>
 
     <!-- Load config.js first -->
-    <script src="config.js"></script>
+        <script src="config.js"></script>
     <script>
-        // Use dynamic API_BASE from config.js
-        const API_BASE = window.LUBAN_CONFIG?.API_BASE || 'https://luban-backend.vercel.app/api';
+        // ============================================
+        // USE CONFIG FOR ALL ROUTING
+        // ============================================
+        const config = window.LUBAN_CONFIG || {};
+        const API_BASE = config.API_BASE || 'https://luban-backend.vercel.app/api';
+        const FRONTEND_URL = config.FRONTEND_URL || 'https://luban-coffee.vercel.app';
+        const LANDING_PAGE = config.LANDING_PAGE || '/';
+
+        // Set the home link dynamically
+        document.getElementById('homeLink').href = FRONTEND_URL + LANDING_PAGE;
 
         async function verify() {
             const input = document.getElementById('barcodeInput');
@@ -144,9 +156,7 @@
             }
         }
 
-        // ============================================
-        // AUTO-VERIFY FROM QR CODE
-        // ============================================
+        // Auto-verify from QR
         const params = new URLSearchParams(window.location.search);
         const barcodeParam = params.get('barcode');
         if (barcodeParam) {
@@ -154,7 +164,7 @@
             verify();
         }
 
-        // Allow Enter key
+        // Enter key support
         document.getElementById('barcodeInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') verify();
         });
