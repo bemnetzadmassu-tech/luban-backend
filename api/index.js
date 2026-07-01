@@ -6,7 +6,16 @@ const path = require('path');
 require('dotenv').config();
 
 const app = express();
-app.use(helmet());
+
+// ============================================
+// HELMET WITH CSP DISABLED
+// ============================================
+app.use(
+    helmet({
+        contentSecurityPolicy: false,
+    })
+);
+
 app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
 app.use(express.json({ limit: '10mb' }));
 
@@ -23,9 +32,6 @@ const exportPosFeedHandler = require('./export-pos-feed');
 const deleteHandler = require('./delete');
 const deleteAllHandler = require('./delete').deleteAll;
 
-// ============================================
-// DEBUG: CHECK HANDLER TYPES
-// ============================================
 console.log('🔍 Checking handler types:');
 console.log('generateHandler:', typeof generateHandler);
 console.log('registerBatchHandler:', typeof registerBatchHandler);
@@ -41,7 +47,6 @@ console.log('✅ All handlers loaded');
 // ============================================
 // STATIC FILES
 // ============================================
-// Serve static files from the public directory
 app.use(express.static(path.join(__dirname, '../public')));
 
 // ============================================
@@ -83,10 +88,9 @@ app.delete('/api/barcode/:barcode', deleteHandler);
 app.delete('/api/barcodes/all', deleteAllHandler);
 
 // ============================================
-// CATCH-ALL FOR SPA / FALLBACK
+// CATCH-ALL
 // ============================================
 app.get('*', (req, res) => {
-    // If the request is not for an API endpoint, serve the landing page
     if (!req.path.startsWith('/api')) {
         res.sendFile(path.join(__dirname, '../public/index.html'));
     } else {
@@ -95,6 +99,6 @@ app.get('*', (req, res) => {
 });
 
 // ============================================
-// EXPORT FOR VERCEL
+// EXPORT
 // ============================================
 module.exports = app;

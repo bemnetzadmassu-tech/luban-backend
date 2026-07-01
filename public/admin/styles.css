@@ -30,3 +30,72 @@ input:focus, select:focus { outline: none; border-color: #D4AF37; }
 .alert { padding: 1rem; border-radius: 16px; margin: 1rem 0; }
 .alert-success { background: #e6f7e6; border-left: 4px solid #2ecc71; }
 .alert-error { background: #fde8e8; border-left: 4px solid #e74c3c; }
+/* Barcode item styles */
+.barcode-item {
+    background: white;
+    border: 1px solid #eee;
+    border-radius: 16px;
+    padding: 16px;
+    text-align: center;
+    transition: 0.2s;
+}
+.barcode-item:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.barcode-item svg {
+    max-width: 100%;
+    height: auto;
+}
+.barcode-item .code {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    background: #f0ebe0;
+    padding: 4px 12px;
+    border-radius: 30px;
+    display: inline-block;
+    margin-top: 8px;
+}
+.btn-png {
+    background: #D4AF37;
+    color: #1a1a2e;
+    border: none;
+    padding: 4px 12px;
+    border-radius: 30px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 11px;
+}
+.btn-qr {
+    background: #2c5a4a;
+    color: #D4AF37;
+    border: none;
+    padding: 4px 12px;
+    border-radius: 30px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 11px;
+}
+.btn-delete {
+    background: #c0392b;
+    color: white;
+    border: none;
+    padding: 4px 12px;
+    border-radius: 30px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 11px;
+}
+.btn-png:hover, .btn-qr:hover, .btn-delete:hover {
+    transform: scale(1.05);
+}
+.barcode-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    margin-top: 20px;
+}
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: #888;
+}

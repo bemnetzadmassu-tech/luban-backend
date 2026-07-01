@@ -28,6 +28,7 @@ const routes = {
     barcodes: loadBarcodes
 };
 
+
 // ============================================
 // PAGE LOADER
 // ============================================
@@ -80,38 +81,232 @@ async function loadDashboard() {
 }
 
 // ============================================
-// GENERATE BARCODES
+// GENERATE BARCODES (Full version with PNG, QR, Print)
 // ============================================
 async function loadGenerate() {
     document.getElementById('page-generate').innerHTML = `
         <div class="card">
             <h1>📦 Generate Barcodes</h1>
             <div class="grid-2">
-                <div class="form-group"><label>Prefix</label><input type="text" id="prefix" value="LBN-500-" /></div>
-                <div class="form-group"><label>Start</label><input type="number" id="startNum" value="1" /></div>
-                <div class="form-group"><label>End</label><input type="number" id="endNum" value="10" /></div>
-                <div class="form-group"><label>Pad Zeros</label><input type="number" id="padZeros" value="5" /></div>
+                <div class="form-group">
+                    <label>Prefix</label>
+                    <input type="text" id="prefix" value="LBN-500-" />
+                </div>
+                <div class="form-group">
+                    <label>Start Number</label>
+                    <input type="number" id="startNum" value="1" />
+                </div>
+                <div class="form-group">
+                    <label>End Number</label>
+                    <input type="number" id="endNum" value="10" />
+                </div>
+                <div class="form-group">
+                    <label>Pad Zeros</label>
+                    <input type="number" id="padZeros" value="5" />
+                </div>
+                <div class="form-group">
+                    <label>Weight (g)</label>
+                    <input type="number" id="weight" value="250" />
+                </div>
+                <div class="form-group">
+                    <label>Roast Level</label>
+                    <select id="roast">
+                        <option value="LR">Light Roast</option>
+                        <option value="MR" selected>Medium Roast</option>
+                        <option value="DR">Dark Roast</option>
+                    </select>
+                </div>
             </div>
-            <button class="btn" onclick="generateBarcodes()">🚀 Generate</button>
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                <button class="btn" onclick="generateBarcodes()">🚀 Generate</button>
+                <button class="btn btn-secondary" onclick="clearPreview()">🗑️ Clear Preview</button>
+                <button class="btn btn-secondary" onclick="window.print()">🖨️ Print</button>
+            </div>
             <div id="genResult"></div>
             <div id="barcodePreview" class="barcode-grid"></div>
         </div>
     `;
+
+    // Make functions globally accessible
     window.generateBarcodes = async function() {
         const prefix = document.getElementById('prefix').value.trim();
         const start = parseInt(document.getElementById('startNum').value);
         const end = parseInt(document.getElementById('endNum').value);
         const pad = parseInt(document.getElementById('padZeros').value);
-        if (isNaN(start) || isNaN(end) || start > end) { alert('Invalid range'); return; }
-        const res = await fetch(`${API_BASE}/generate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ prefix, start, end, pad })
-        });
-        const data = await res.json();
-        document.getElementById('genResult').innerHTML = data.success ? `<div class="alert alert-success">✅ ${data.count} generated</div>` : `<div class="alert alert-error">❌ ${data.error}</div>`;
+        const weight = parseInt(document.getElementById('weight').value);
+        const roast = document.getElementById('roast').value;
+
+        if (isNaN(start) || isNaN(end) || start > end) {
+            alert('Invalid range. Start must be <= End.');
+            return;
+        }
+
+        const resultDiv = document.getElementById('genResult');
+        resultDiv.innerHTML = '<div class="alert alert-success">⏳ Generating...</div>';
+
+        try {
+            const res = await fetch(`${API_BASE}/generate`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({ prefix, start, end, pad, weight, roast })
+            });
+
+            const data = await res.json();
+
+            if (data.success) {
+                resultDiv.innerHTML = `<div class="alert alert-success">✅ ${data.count} barcodes generated and saved!</div>`;
+                displayBarcodes(prefix, start, end, pad);
+            } else {
+                resultDiv.innerHTML = `<div class="alert alert-error">❌ ${data.error || 'Generation failed'}</div>`;
+            }
+        } catch (err) {
+            resultDiv.innerHTML = `<div class="alert alert-error">❌ Network error: ${err.message}</div>`;
+        }
+    };
+
+    window.clearPreview = function() {
+        document.getElementById('barcodePreview').innerHTML = '<div class="loading" style="text-align:center; padding:40px; color:#888;">Generate barcodes to see them here</div>';
+        document.getElementById('genResult').innerHTML = '';
     };
 }
+
+// ============================================
+// DISPLAY BARCODES WITH PNG, QR, DELETE
+// ============================================
+function displayBarcodes(prefix, start, end, pad) {
+    const container = document.getElementById('barcodePreview');
+    container.innerHTML = '';
+
+    const total = Math.min(end - start + 1, 20); // Show max 20
+
+    for (let i = start; i < start + total; i++) {
+        const num = String(i).padStart(pad, '0');
+        const barcode = prefix + num;
+        const svgId = `barcode-${i}`;
+
+        const div = document.createElement('div');
+        div.className = 'barcode-item';
+        div.innerHTML = `
+            <svg id="${svgId}"></svg>
+            <div class="code">${barcode}</div>
+            <div style="margin-top:10px; display:flex; gap:6px; justify-content:center; flex-wrap:wrap;">
+                <button class="btn-png" onclick="downloadPNG('${svgId}', '${barcode}')">📥 PNG</button>
+                <button class="btn-qr" onclick="downloadQR('${barcode}')">📱 QR</button>
+                <button class="btn-delete" onclick="deleteBarcode('${barcode}')">🗑️</button>
+            </div>
+        `;
+        container.appendChild(div);
+
+        try {
+            JsBarcode(`#${svgId}`, barcode, {
+                format: 'CODE128',
+                width: 2.0,
+                height: 60,
+                displayValue: false,
+                margin: 8,
+                background: '#ffffff',
+                lineColor: '#1a3a32'
+            });
+        } catch (e) {
+            console.warn('Barcode error:', e);
+        }
+    }
+
+    if (end - start + 1 > 20) {
+        const div = document.createElement('div');
+        div.className = 'barcode-item';
+        div.style.cssText = 'display:flex; align-items:center; justify-content:center; background:#f8f7f4; font-size:14px; color:#666;';
+        div.innerHTML = `+ ${end - start + 1 - 20} more barcodes generated (view in All Barcodes)`;
+        container.appendChild(div);
+    }
+}
+
+// ============================================
+// DOWNLOAD PNG
+// ============================================
+window.downloadPNG = function(svgId, filename) {
+    const svg = document.getElementById(svgId);
+    if (!svg) {
+        alert('Barcode not found');
+        return;
+    }
+
+    const clone = svg.cloneNode(true);
+    const bbox = svg.getBBox();
+    clone.setAttribute('width', bbox.width + 20);
+    clone.setAttribute('height', bbox.height + 20);
+
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('width', '100%');
+    rect.setAttribute('height', '100%');
+    rect.setAttribute('fill', 'white');
+    clone.insertBefore(rect, clone.firstChild);
+
+    const serializer = new XMLSerializer();
+    const svgString = serializer.serializeToString(clone);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+
+    img.onload = function() {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        URL.revokeObjectURL(url);
+        const link = document.createElement('a');
+        link.download = `${filename}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    };
+    img.src = url;
+};
+
+// ============================================
+// DOWNLOAD QR (points to verification page)
+// ============================================
+window.downloadQR = function(barcode) {
+    // Get the frontend URL from config or use default
+    const frontendUrl = window.location.origin || 'https://luban-coffee.vercel.app';
+    const baseUrl = frontendUrl + '/verify-public.html';
+    const url = `${baseUrl}?barcode=${encodeURIComponent(barcode)}`;
+    const qrApi = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}`;
+
+    const link = document.createElement('a');
+    link.href = qrApi;
+    link.download = `${barcode}-qr.png`;
+    link.click();
+};
+
+// ============================================
+// DELETE SINGLE BARCODE
+// ============================================
+window.deleteBarcode = async function(barcode) {
+    if (!confirm(`Delete barcode ${barcode}?`)) return;
+
+    try {
+        const res = await fetch(`${API_BASE}/barcode/${barcode}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            alert(`✅ ${data.message}`);
+            // Refresh the current page
+            loadPage('generate');
+        } else {
+            alert('❌ ' + (data.message || 'Delete failed'));
+        }
+    } catch (err) {
+        alert('❌ Error: ' + err.message);
+    }
+};
+
 
 // ============================================
 // ASSIGN ORIGIN (EUDR)
