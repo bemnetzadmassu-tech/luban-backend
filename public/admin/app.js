@@ -1,4 +1,16 @@
-const API_BASE = window.LUBAN_CONFIG?.API_BASE || '/api';
+// ============================================
+// GET CONFIG (dynamic)
+// ============================================
+function getConfig() {
+    return window.LUBAN_CONFIG || {
+        API_BASE: 'https://luban-backend.vercel.app/api',
+        BACKEND_URL: 'https://luban-backend.vercel.app',
+        FRONTEND_URL: 'https://luban-coffee.vercel.app'
+    };
+}
+
+const CONFIG = getConfig();
+const API_BASE = CONFIG.API_BASE;
 let token = localStorage.getItem('token');
 
 if (!token) {
@@ -150,9 +162,10 @@ function displayBarcodes(prefix, start, end, pad) {
 }
 
 // ============================================
-// DOWNLOAD PNG & QR (with Cloudinary fallback)
+// DOWNLOAD PNG (dynamic from config)
 // ============================================
 window.downloadPNG = async function(svgId, barcode) {
+    const API_BASE = getConfig().API_BASE;
     try {
         const res = await fetch(`${API_BASE}/image/${barcode}/png`);
         const data = await res.json();
@@ -169,7 +182,11 @@ window.downloadPNG = async function(svgId, barcode) {
     }
 };
 
+// ============================================
+// DOWNLOAD QR (dynamic from config)
+// ============================================
 window.downloadQR = async function(barcode) {
+    const API_BASE = getConfig().API_BASE;
     try {
         const res = await fetch(`${API_BASE}/image/${barcode}/qr`);
         const data = await res.json();
@@ -186,6 +203,9 @@ window.downloadQR = async function(barcode) {
     }
 };
 
+// ============================================
+// FALLBACK PNG
+// ============================================
 function fallbackDownloadPNG(svgId, barcode) {
     const svg = document.getElementById(svgId);
     if (!svg) return;
@@ -218,9 +238,12 @@ function fallbackDownloadPNG(svgId, barcode) {
     img.src = url;
 }
 
+// ============================================
+// FALLBACK QR (uses BACKEND_URL from config)
+// ============================================
 function fallbackDownloadQR(barcode) {
-    const frontendUrl = window.location.origin || 'https://luban-coffee.vercel.app';
-    const baseUrl = frontendUrl + '/verify-public.html';
+    const config = getConfig();
+    const baseUrl = config.BACKEND_URL + '/verify-public.html';
     const url = `${baseUrl}?barcode=${encodeURIComponent(barcode)}`;
     const qrApi = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}`;
     const link = document.createElement('a');
@@ -561,4 +584,7 @@ window.downloadPOSFeed = function() {
     window.open(`${API_BASE}/export-pos-feed`, '_blank');
 };
 
+// ============================================
+// LOAD DEFAULT PAGE
+// ============================================
 loadPage('dashboard');
