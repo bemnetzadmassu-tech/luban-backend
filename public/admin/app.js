@@ -5,7 +5,7 @@ function getConfig() {
     return window.LUBAN_CONFIG || {
         API_BASE: 'https://luban-backend.vercel.app/api',
         BACKEND_URL: 'https://luban-backend.vercel.app',
-        FRONTEND_URL: 'https://luban-coffee.vercel.app',
+        FRONTEND_URL: 'https://luban-coffeee.vercel.app',
         VERIFY_PAGE: '/verify-public.html'
     };
 }
