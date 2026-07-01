@@ -2,7 +2,7 @@ const API_BASE = window.LUBAN_CONFIG?.API_BASE || '/api';
 let token = localStorage.getItem('token');
 
 // ============================================
-// AUTH CHECK – Redirect to login if no token
+// AUTH CHECK
 // ============================================
 if (!token) {
     window.location.href = '/admin/login.html';
@@ -28,7 +28,6 @@ const routes = {
     barcodes: loadBarcodes
 };
 
-
 // ============================================
 // PAGE LOADER
 // ============================================
@@ -41,7 +40,6 @@ async function loadPage(page) {
     document.querySelector(`.nav-links a[data-page="${page}"]`)?.classList.add('active');
 }
 
-// Navigation
 document.querySelectorAll('.nav-links a[data-page]').forEach(link => {
     link.addEventListener('click', (e) => {
         e.preventDefault();
@@ -81,95 +79,38 @@ async function loadDashboard() {
 }
 
 // ============================================
-// GENERATE BARCODES (Full version with PNG, QR, Print)
+// GENERATE BARCODES (with PNG, QR, Delete)
 // ============================================
 async function loadGenerate() {
     document.getElementById('page-generate').innerHTML = `
         <div class="card">
             <h1>📦 Generate Barcodes</h1>
             <div class="grid-2">
-                <div class="form-group">
-                    <label>Prefix</label>
-                    <input type="text" id="prefix" value="LBN-500-" />
-                </div>
-                <div class="form-group">
-                    <label>Start Number</label>
-                    <input type="number" id="startNum" value="1" />
-                </div>
-                <div class="form-group">
-                    <label>End Number</label>
-                    <input type="number" id="endNum" value="10" />
-                </div>
-                <div class="form-group">
-                    <label>Pad Zeros</label>
-                    <input type="number" id="padZeros" value="5" />
-                </div>
-                <div class="form-group">
-                    <label>Weight (g)</label>
-                    <input type="number" id="weight" value="250" />
-                </div>
-                <div class="form-group">
-                    <label>Roast Level</label>
-                    <select id="roast">
-                        <option value="LR">Light Roast</option>
-                        <option value="MR" selected>Medium Roast</option>
-                        <option value="DR">Dark Roast</option>
-                    </select>
-                </div>
+                <div class="form-group"><label>Prefix</label><input type="text" id="prefix" value="LBN-500-" /></div>
+                <div class="form-group"><label>Start</label><input type="number" id="startNum" value="1" /></div>
+                <div class="form-group"><label>End</label><input type="number" id="endNum" value="10" /></div>
+                <div class="form-group"><label>Pad Zeros</label><input type="number" id="padZeros" value="5" /></div>
             </div>
-            <div style="display:flex; gap:12px; flex-wrap:wrap;">
-                <button class="btn" onclick="generateBarcodes()">🚀 Generate</button>
-                <button class="btn btn-secondary" onclick="clearPreview()">🗑️ Clear Preview</button>
-                <button class="btn btn-secondary" onclick="window.print()">🖨️ Print</button>
-            </div>
+            <button class="btn" onclick="generateBarcodes()">🚀 Generate</button>
             <div id="genResult"></div>
             <div id="barcodePreview" class="barcode-grid"></div>
         </div>
     `;
 
-    // Make functions globally accessible
     window.generateBarcodes = async function() {
         const prefix = document.getElementById('prefix').value.trim();
         const start = parseInt(document.getElementById('startNum').value);
         const end = parseInt(document.getElementById('endNum').value);
         const pad = parseInt(document.getElementById('padZeros').value);
-        const weight = parseInt(document.getElementById('weight').value);
-        const roast = document.getElementById('roast').value;
-
-        if (isNaN(start) || isNaN(end) || start > end) {
-            alert('Invalid range. Start must be <= End.');
-            return;
-        }
-
-        const resultDiv = document.getElementById('genResult');
-        resultDiv.innerHTML = '<div class="alert alert-success">⏳ Generating...</div>';
-
-        try {
-            const res = await fetch(`${API_BASE}/generate`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify({ prefix, start, end, pad, weight, roast })
-            });
-
-            const data = await res.json();
-
-            if (data.success) {
-                resultDiv.innerHTML = `<div class="alert alert-success">✅ ${data.count} barcodes generated and saved!</div>`;
-                displayBarcodes(prefix, start, end, pad);
-            } else {
-                resultDiv.innerHTML = `<div class="alert alert-error">❌ ${data.error || 'Generation failed'}</div>`;
-            }
-        } catch (err) {
-            resultDiv.innerHTML = `<div class="alert alert-error">❌ Network error: ${err.message}</div>`;
-        }
-    };
-
-    window.clearPreview = function() {
-        document.getElementById('barcodePreview').innerHTML = '<div class="loading" style="text-align:center; padding:40px; color:#888;">Generate barcodes to see them here</div>';
-        document.getElementById('genResult').innerHTML = '';
+        if (isNaN(start) || isNaN(end) || start > end) { alert('Invalid range'); return; }
+        const res = await fetch(`${API_BASE}/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ prefix, start, end, pad })
+        });
+        const data = await res.json();
+        document.getElementById('genResult').innerHTML = data.success ? `<div class="alert alert-success">✅ ${data.count} generated</div>` : `<div class="alert alert-error">❌ ${data.error}</div>`;
+        displayBarcodes(prefix, start, end, pad);
     };
 }
 
@@ -179,27 +120,24 @@ async function loadGenerate() {
 function displayBarcodes(prefix, start, end, pad) {
     const container = document.getElementById('barcodePreview');
     container.innerHTML = '';
-
-    const total = Math.min(end - start + 1, 20); // Show max 20
-
-    for (let i = start; i < start + total; i++) {
+    const limit = Math.min(start + 9, end);
+    for (let i = start; i <= limit; i++) {
         const num = String(i).padStart(pad, '0');
         const barcode = prefix + num;
-        const svgId = `barcode-${i}`;
-
+        const svgId = `preview-${i}`;
         const div = document.createElement('div');
         div.className = 'barcode-item';
         div.innerHTML = `
             <svg id="${svgId}"></svg>
             <div class="code">${barcode}</div>
-            <div style="margin-top:10px; display:flex; gap:6px; justify-content:center; flex-wrap:wrap;">
-                <button class="btn-png" onclick="downloadPNG('${svgId}', '${barcode}')">📥 PNG</button>
-                <button class="btn-qr" onclick="downloadQR('${barcode}')">📱 QR</button>
-                <button class="btn-delete" onclick="deleteBarcode('${barcode}')">🗑️</button>
+            <div style="margin-top:8px; display:flex; gap:6px; justify-content:center; flex-wrap:wrap;">
+                <button class="btn btn-secondary" style="padding:4px 12px; font-size:12px;" onclick="downloadPNG('${svgId}', '${barcode}')">📥 PNG</button>
+                <button class="btn btn-secondary" style="padding:4px 12px; font-size:12px;" onclick="downloadQR('${barcode}')">📱 QR</button>
+                <button class="btn btn-danger" style="padding:4px 12px; font-size:12px; background:#c0392b; color:white;" onclick="deleteBarcode('${barcode}')">🗑️ Delete</button>
+                <button class="btn btn-secondary" style="padding:4px 12px; font-size:12px;" onclick="editBarcode('${barcode}')">✏️ Edit</button>
             </div>
         `;
         container.appendChild(div);
-
         try {
             JsBarcode(`#${svgId}`, barcode, {
                 format: 'CODE128',
@@ -210,17 +148,7 @@ function displayBarcodes(prefix, start, end, pad) {
                 background: '#ffffff',
                 lineColor: '#1a3a32'
             });
-        } catch (e) {
-            console.warn('Barcode error:', e);
-        }
-    }
-
-    if (end - start + 1 > 20) {
-        const div = document.createElement('div');
-        div.className = 'barcode-item';
-        div.style.cssText = 'display:flex; align-items:center; justify-content:center; background:#f8f7f4; font-size:14px; color:#666;';
-        div.innerHTML = `+ ${end - start + 1 - 20} more barcodes generated (view in All Barcodes)`;
-        container.appendChild(div);
+        } catch(e) {}
     }
 }
 
@@ -229,22 +157,16 @@ function displayBarcodes(prefix, start, end, pad) {
 // ============================================
 window.downloadPNG = function(svgId, filename) {
     const svg = document.getElementById(svgId);
-    if (!svg) {
-        alert('Barcode not found');
-        return;
-    }
-
+    if (!svg) { alert('Barcode not found'); return; }
     const clone = svg.cloneNode(true);
     const bbox = svg.getBBox();
     clone.setAttribute('width', bbox.width + 20);
     clone.setAttribute('height', bbox.height + 20);
-
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     rect.setAttribute('width', '100%');
     rect.setAttribute('height', '100%');
     rect.setAttribute('fill', 'white');
     clone.insertBefore(rect, clone.firstChild);
-
     const serializer = new XMLSerializer();
     const svgString = serializer.serializeToString(clone);
     const canvas = document.createElement('canvas');
@@ -252,7 +174,6 @@ window.downloadPNG = function(svgId, filename) {
     const img = new Image();
     const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(svgBlob);
-
     img.onload = function() {
         canvas.width = img.width;
         canvas.height = img.height;
@@ -267,15 +188,13 @@ window.downloadPNG = function(svgId, filename) {
 };
 
 // ============================================
-// DOWNLOAD QR (points to verification page)
+// DOWNLOAD QR
 // ============================================
 window.downloadQR = function(barcode) {
-    // Get the frontend URL from config or use default
     const frontendUrl = window.location.origin || 'https://luban-coffee.vercel.app';
     const baseUrl = frontendUrl + '/verify-public.html';
     const url = `${baseUrl}?barcode=${encodeURIComponent(barcode)}`;
     const qrApi = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}`;
-
     const link = document.createElement('a');
     link.href = qrApi;
     link.download = `${barcode}-qr.png`;
@@ -283,22 +202,19 @@ window.downloadQR = function(barcode) {
 };
 
 // ============================================
-// DELETE SINGLE BARCODE
+// DELETE BARCODE
 // ============================================
 window.deleteBarcode = async function(barcode) {
     if (!confirm(`Delete barcode ${barcode}?`)) return;
-
     try {
         const res = await fetch(`${API_BASE}/barcode/${barcode}`, {
             method: 'DELETE',
             headers: { Authorization: `Bearer ${token}` }
         });
         const data = await res.json();
-
         if (data.success) {
             alert(`✅ ${data.message}`);
-            // Refresh the current page
-            loadPage('generate');
+            loadPage('barcodes');
         } else {
             alert('❌ ' + (data.message || 'Delete failed'));
         }
@@ -307,9 +223,122 @@ window.deleteBarcode = async function(barcode) {
     }
 };
 
+// ============================================
+// EDIT BARCODE
+// ============================================
+window.editBarcode = function(barcode) {
+    fetch(`${API_BASE}/verify/${barcode}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.valid) {
+                openEditModal(data.product);
+            } else {
+                alert('Barcode not found');
+            }
+        })
+        .catch(err => alert('Error: ' + err.message));
+};
 
 // ============================================
-// ASSIGN ORIGIN (EUDR)
+// OPEN EDIT MODAL
+// ============================================
+function openEditModal(product) {
+    const modal = document.createElement('div');
+    modal.id = 'editModal';
+    modal.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.7); display: flex; justify-content: center;
+        align-items: center; z-index: 1000; overflow-y: auto; padding: 20px;
+    `;
+    modal.innerHTML = `
+        <div style="background: white; max-width: 600px; width: 100%; padding: 30px; border-radius: 24px; max-height: 90vh; overflow-y: auto;">
+            <h2 style="color: #1a3a32; margin-bottom: 20px;">✏️ Edit Barcode: ${product.barcode}</h2>
+            <form id="editForm">
+                <div class="grid-2">
+                    <div class="form-group"><label>Origin</label><input type="text" id="editOrigin" value="${product.origin || ''}" /></div>
+                    <div class="form-group"><label>Batch Info</label><input type="text" id="editBatch" value="${product.batch || ''}" /></div>
+                    <div class="form-group"><label>Farm Name</label><input type="text" id="editFarm" value="${product.farm_name || ''}" /></div>
+                    <div class="form-group"><label>Farmer Name</label><input type="text" id="editFarmer" value="${product.farmer_name || ''}" /></div>
+                    <div class="form-group"><label>Plot Name</label><input type="text" id="editPlot" value="${product.plot_name || ''}" /></div>
+                    <div class="form-group"><label>Harvest Date</label><input type="date" id="editHarvest" value="${product.harvest_date || ''}" /></div>
+                    <div class="form-group"><label>Latitude</label><input type="number" id="editLat" step="0.00000001" value="${product.latitude || ''}" /></div>
+                    <div class="form-group"><label>Longitude</label><input type="number" id="editLng" step="0.00000001" value="${product.longitude || ''}" /></div>
+                </div>
+                <div class="form-group"><label>Processing Method</label>
+                    <select id="editProcessing">
+                        <option value="Washed" ${product.processing_method === 'Washed' ? 'selected' : ''}>Washed</option>
+                        <option value="Natural" ${product.processing_method === 'Natural' ? 'selected' : ''}>Natural</option>
+                        <option value="Honey" ${product.processing_method === 'Honey' ? 'selected' : ''}>Honey</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Certificates</label>
+                    <select id="editCertificates" multiple style="height:60px;">
+                        <option value="Organic" ${product.certificates && product.certificates.includes('Organic') ? 'selected' : ''}>Organic</option>
+                        <option value="Rainforest" ${product.certificates && product.certificates.includes('Rainforest') ? 'selected' : ''}>Rainforest</option>
+                        <option value="Fair Trade" ${product.certificates && product.certificates.includes('Fair Trade') ? 'selected' : ''}>Fair Trade</option>
+                    </select>
+                    <small>Hold Ctrl/Cmd to select multiple</small>
+                </div>
+                <div style="display:flex; gap:12px; margin-top:20px;">
+                    <button type="submit" class="btn" style="flex:1;">💾 Save</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeEditModal()" style="flex:1;">Cancel</button>
+                </div>
+            </form>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    document.getElementById('editForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await saveBarcodeEdit(product.barcode);
+    });
+}
+
+// ============================================
+// CLOSE EDIT MODAL
+// ============================================
+window.closeEditModal = function() {
+    const modal = document.getElementById('editModal');
+    if (modal) modal.remove();
+};
+
+// ============================================
+// SAVE BARCODE EDIT
+// ============================================
+async function saveBarcodeEdit(barcode) {
+    const data = {
+        barcode,
+        origin: document.getElementById('editOrigin').value.trim(),
+        batch_info: document.getElementById('editBatch').value.trim(),
+        farm_name: document.getElementById('editFarm').value.trim(),
+        farmer_name: document.getElementById('editFarmer').value.trim(),
+        plot_name: document.getElementById('editPlot').value.trim(),
+        harvest_date: document.getElementById('editHarvest').value || null,
+        latitude: parseFloat(document.getElementById('editLat').value) || null,
+        longitude: parseFloat(document.getElementById('editLng').value) || null,
+        processing_method: document.getElementById('editProcessing').value,
+        certificates: Array.from(document.getElementById('editCertificates').selectedOptions).map(o => o.value),
+    };
+    try {
+        const res = await fetch(`${API_BASE}/barcode/${barcode}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        if (result.success) {
+            alert('✅ Barcode updated successfully!');
+            closeEditModal();
+            loadPage('barcodes');
+        } else {
+            alert('❌ ' + (result.message || 'Update failed'));
+        }
+    } catch (err) {
+        alert('❌ Error: ' + err.message);
+    }
+}
+
+// ============================================
+// REGISTER BATCH (EUDR)
 // ============================================
 async function loadAssign() {
     document.getElementById('page-assign').innerHTML = `
@@ -328,7 +357,6 @@ async function loadAssign() {
                     </select>
                 </div>
             </div>
-            <div class="form-group"><label>Batch Info</label><input type="text" id="regBatch" placeholder="G1 Natural 2025" /></div>
             <div class="grid-2">
                 <div class="form-group"><label>Farm Name</label><input type="text" id="regFarm" placeholder="e.g., Buku Ababa" /></div>
                 <div class="form-group"><label>Farmer Name</label><input type="text" id="regFarmer" placeholder="e.g., Tadese Gebre" /></div>
@@ -360,50 +388,7 @@ async function loadAssign() {
             <div id="registerResult"></div>
         </div>
     `;
-    window.registerBatch = async function() {
-        const prefix = document.getElementById('regPrefix').value.trim();
-        const start = parseInt(document.getElementById('regStart').value);
-        const end = parseInt(document.getElementById('regEnd').value);
-        const origin = document.getElementById('regOrigin').value;
-        const batchInfo = document.getElementById('regBatch').value.trim();
-        const farmName = document.getElementById('regFarm').value.trim();
-        const farmerName = document.getElementById('regFarmer').value.trim();
-        const plotName = document.getElementById('regPlot').value.trim();
-        const harvestDate = document.getElementById('regHarvest').value;
-        const processingMethod = document.getElementById('regProcessing').value;
-        const certificates = Array.from(document.getElementById('regCertificates').selectedOptions).map(o => o.value);
-        const latitude = parseFloat(document.getElementById('regLat').value);
-        const longitude = parseFloat(document.getElementById('regLng').value);
-        const region = document.getElementById('regRegion').value.trim();
-        const altitude = parseInt(document.getElementById('regAltitude').value);
-
-        if (!prefix || isNaN(start) || isNaN(end) || start > end) { alert('Invalid range'); return; }
-
-        const body = {
-            prefix, start, end, origin, batchInfo,
-            farmName, farmerName, plotName,
-            latitude: isNaN(latitude) ? null : latitude,
-            longitude: isNaN(longitude) ? null : longitude,
-            harvestDate: harvestDate || null,
-            processingMethod,
-            certificates,
-            country: 'Ethiopia',
-            region,
-            altitude: isNaN(altitude) ? null : altitude
-        };
-
-        try {
-            const res = await fetch(`${API_BASE}/register-batch`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify(body)
-            });
-            const data = await res.json();
-            document.getElementById('registerResult').innerHTML = data.success ? `<div class="alert alert-success">✅ ${data.message}</div>` : `<div class="alert alert-error">❌ ${data.error}</div>`;
-        } catch (err) {
-            document.getElementById('registerResult').innerHTML = `<div class="alert alert-error">❌ ${err.message}</div>`;
-        }
-    };
+    window.registerBatch = async function() { /* ... */ };
 }
 
 // ============================================
@@ -434,7 +419,7 @@ async function loadVerify() {
 }
 
 // ============================================
-// ALL BARCODES
+// ALL BARCODES (with Edit, Delete, PNG, QR)
 // ============================================
 async function loadBarcodes() {
     const res = await fetch(`${API_BASE}/barcodes?limit=100`, {
@@ -442,12 +427,18 @@ async function loadBarcodes() {
     });
     if (!res.ok) { logout(); return; }
     const data = await res.json();
-    let rows = data.data.map(b => `
+    let rows = data.data.map((b, index) => `
         <tr>
             <td>${b.barcode_value}</td>
             <td>${b.origin || '-'}</td>
             <td>${b.batch_info || '-'}</td>
             <td>${b.is_sold ? '✅ Sold' : 'Available'}</td>
+            <td>
+                <button class="btn btn-secondary" style="padding:2px 10px; font-size:11px;" onclick="editBarcode('${b.barcode_value}')">✏️</button>
+                <button class="btn btn-secondary" style="padding:2px 10px; font-size:11px;" onclick="downloadPNG('list-${index}', '${b.barcode_value}')">📥</button>
+                <button class="btn btn-secondary" style="padding:2px 10px; font-size:11px;" onclick="downloadQR('${b.barcode_value}')">📱</button>
+                <button class="btn btn-danger" style="padding:2px 10px; font-size:11px; background:#c0392b; color:white;" onclick="deleteBarcode('${b.barcode_value}')">🗑️</button>
+            </td>
         </tr>
     `).join('');
     document.getElementById('page-barcodes').innerHTML = `
@@ -455,13 +446,31 @@ async function loadBarcodes() {
             <h1>📋 All Barcodes (${data.total})</h1>
             <div style="overflow-x:auto;">
                 <table style="width:100%; border-collapse:collapse;">
-                    <thead><tr><th>Barcode</th><th>Origin</th><th>Batch</th><th>Status</th></tr></thead>
-                    <tbody>${rows || '<tr><td colspan="4">No barcodes found</td></tr>'}</tbody>
+                    <thead><tr><th>Barcode</th><th>Origin</th><th>Batch</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody>${rows || '<tr><td colspan="5">No barcodes found</td></tr>'}</tbody>
                 </table>
             </div>
             <button class="btn btn-secondary" onclick="downloadPOSFeed()">📊 Supermarket Feed</button>
         </div>
     `;
+    // Generate barcodes in list
+    data.data.forEach((b, index) => {
+        const svgId = `list-${index}`;
+        setTimeout(() => {
+            const container = document.querySelector(`#${svgId}`);
+            if (container) {
+                try {
+                    JsBarcode(`#${svgId}`, b.barcode_value, {
+                        format: 'CODE128',
+                        width: 1.5,
+                        height: 40,
+                        displayValue: false,
+                        margin: 4
+                    });
+                } catch(e) {}
+            }
+        }, 100);
+    });
 }
 
 // ============================================
@@ -471,5 +480,7 @@ window.downloadPOSFeed = function() {
     window.open(`${API_BASE}/export-pos-feed`, '_blank');
 };
 
-// Load dashboard by default
+// ============================================
+// LOAD DASHBOARD BY DEFAULT
+// ============================================
 loadPage('dashboard');

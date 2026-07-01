@@ -8,11 +8,27 @@ require('dotenv').config();
 const app = express();
 
 // ============================================
-// HELMET WITH CSP DISABLED
+// HELMET WITH RELAXED CSP
 // ============================================
 app.use(
     helmet({
-        contentSecurityPolicy: false,
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: [
+                    "'self'",
+                    "'unsafe-inline'",
+                    "'unsafe-eval'",
+                    "https://cdn.jsdelivr.net",
+                    "https://api.qrserver.com"
+                ],
+                styleSrc: ["'self'", "'unsafe-inline'"],
+                imgSrc: ["'self'", "data:", "https:"],
+                connectSrc: ["'self'", "https:"],
+                fontSrc: ["'self'", "https:", "data:"],
+                scriptSrcAttr: ["'unsafe-inline'"],
+            },
+        },
     })
 );
 
@@ -31,7 +47,11 @@ const statsHandler = require('./stats');
 const exportPosFeedHandler = require('./export-pos-feed');
 const deleteHandler = require('./delete');
 const deleteAllHandler = require('./delete').deleteAll;
+const updateHandler = require('./update');
 
+// ============================================
+// DEBUG: CHECK HANDLER TYPES
+// ============================================
 console.log('🔍 Checking handler types:');
 console.log('generateHandler:', typeof generateHandler);
 console.log('registerBatchHandler:', typeof registerBatchHandler);
@@ -42,16 +62,14 @@ console.log('statsHandler:', typeof statsHandler);
 console.log('exportPosFeedHandler:', typeof exportPosFeedHandler);
 console.log('deleteHandler:', typeof deleteHandler);
 console.log('deleteAllHandler:', typeof deleteAllHandler);
+console.log('updateHandler:', typeof updateHandler);
 console.log('✅ All handlers loaded');
 
 // ============================================
-// STATIC FILES
+// STATIC FILES & ROOT LANDING
 // ============================================
 app.use(express.static(path.join(__dirname, '../public')));
 
-// ============================================
-// ROOT LANDING PAGE
-// ============================================
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/index.html'));
 });
@@ -84,11 +102,12 @@ app.post('/api/sold', soldHandler);
 app.get('/api/barcodes', barcodesHandler);
 app.get('/api/stats', statsHandler);
 app.get('/api/export-pos-feed', exportPosFeedHandler);
+app.put('/api/barcode/:barcode', updateHandler);
 app.delete('/api/barcode/:barcode', deleteHandler);
 app.delete('/api/barcodes/all', deleteAllHandler);
 
 // ============================================
-// CATCH-ALL
+// CATCH-ALL FOR SPA / FALLBACK
 // ============================================
 app.get('*', (req, res) => {
     if (!req.path.startsWith('/api')) {
@@ -99,6 +118,6 @@ app.get('*', (req, res) => {
 });
 
 // ============================================
-// EXPORT
+// EXPORT FOR VERCEL
 // ============================================
 module.exports = app;
