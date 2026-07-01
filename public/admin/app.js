@@ -205,7 +205,6 @@ window.downloadQR = async function(barcode) {
         fallbackDownloadQR(barcode);
     }
 };
-
 // ============================================
 // FALLBACK PNG
 // ============================================

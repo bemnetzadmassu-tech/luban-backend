@@ -70,7 +70,7 @@ window.resetLubanConfig = function() {
 // ============================================
 window.getPageUrl = function(pageKey) {
     const config = window.LUBAN_CONFIG || {};
-    const baseUrl = config.FRONTEND_URL || 'https://luban-coffee.vercel.app';
+    const baseUrl = config.FRONTEND_URL || 'https://luban-coffeee.vercel.app';
     const pageMap = {
         home: config.LANDING_PAGE || '/',
         verify: config.VERIFY_PAGE || '/verify-public.html',
