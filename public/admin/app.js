@@ -123,23 +123,41 @@ async function loadGenerate() {
         });
         const data = await res.json();
         document.getElementById('genResult').innerHTML = data.success ? `<div class="alert alert-success">✅ ${data.count} generated</div>` : `<div class="alert alert-error">❌ ${data.error}</div>`;
-        displayBarcodes(prefix, start, end, pad);
+        displayBarcodesWithQR(prefix, start, end, pad);
     };
 }
 
-function displayBarcodes(prefix, start, end, pad) {
+function displayBarcodesWithQR(prefix, start, end, pad) {
     const container = document.getElementById('barcodePreview');
     container.innerHTML = '';
     const limit = Math.min(start + 9, end);
+    
     for (let i = start; i <= limit; i++) {
         const num = String(i).padStart(pad, '0');
         const barcode = prefix + num;
         const svgId = `preview-${i}`;
+        const qrId = `qr-preview-${i}`;
+        
+        // Generate QR URL using config
+        const config = window.LUBAN_CONFIG || {};
+        const backendUrl = config.BACKEND_URL || 'https://luban-backend.vercel.app';
+        const verifyPage = config.VERIFY_PAGE || '/verify-public.html';
+        const qrUrl = `${backendUrl}${verifyPage}?barcode=${encodeURIComponent(barcode)}`;
+        const qrApi = `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(qrUrl)}`;
+        
         const div = document.createElement('div');
         div.className = 'barcode-item';
         div.innerHTML = `
-            <svg id="${svgId}"></svg>
-            <div class="code">${barcode}</div>
+            <div style="display:flex; justify-content:center; gap:16px; align-items:center; flex-wrap:wrap;">
+                <div>
+                    <svg id="${svgId}"></svg>
+                    <div class="code">${barcode}</div>
+                </div>
+                <div>
+                    <img id="${qrId}" src="${qrApi}" alt="QR Code" style="width:80px; height:80px; border:1px solid #ddd; border-radius:8px; padding:4px;" />
+                    <div style="font-size:10px; color:#888; margin-top:4px;">QR Code</div>
+                </div>
+            </div>
             <div style="margin-top:8px; display:flex; gap:6px; justify-content:center; flex-wrap:wrap;">
                 <button class="btn btn-secondary" style="padding:4px 12px; font-size:12px;" onclick="downloadPNG('${svgId}', '${barcode}')">📥 PNG</button>
                 <button class="btn btn-secondary" style="padding:4px 12px; font-size:12px;" onclick="downloadQR('${barcode}')">📱 QR</button>
@@ -148,6 +166,61 @@ function displayBarcodes(prefix, start, end, pad) {
             </div>
         `;
         container.appendChild(div);
+        
+        try {
+            JsBarcode(`#${svgId}`, barcode, {
+                format: 'CODE128',
+                width: 2.0,
+                height: 60,
+                displayValue: false,
+                margin: 8,
+                background: '#ffffff',
+                lineColor: '#1a3a32'
+            });
+        } catch(e) {}
+    }
+}
+
+function displayBarcodes(prefix, start, end, pad) {
+    const container = document.getElementById('barcodePreview');
+    container.innerHTML = '';
+    const limit = Math.min(start + 9, end);
+    
+    for (let i = start; i <= limit; i++) {
+        const num = String(i).padStart(pad, '0');
+        const barcode = prefix + num;
+        const svgId = `preview-${i}`;
+        const qrId = `qr-preview-${i}`;
+        
+        // Generate QR URL
+        const config = window.LUBAN_CONFIG || {};
+        const backendUrl = config.BACKEND_URL || 'https://luban-backend.vercel.app';
+        const verifyPage = config.VERIFY_PAGE || '/verify-public.html';
+        const qrUrl = `${backendUrl}${verifyPage}?barcode=${encodeURIComponent(barcode)}`;
+        const qrApi = `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(qrUrl)}`;
+        
+        const div = document.createElement('div');
+        div.className = 'barcode-item';
+        div.innerHTML = `
+            <div style="display:flex; justify-content:center; gap:16px; align-items:center; flex-wrap:wrap;">
+                <div>
+                    <svg id="${svgId}"></svg>
+                    <div class="code">${barcode}</div>
+                </div>
+                <div>
+                    <img id="${qrId}" src="${qrApi}" alt="QR Code" style="width:80px; height:80px; border:1px solid #ddd; border-radius:8px; padding:4px;" />
+                    <div style="font-size:10px; color:#888; margin-top:4px;">QR Code</div>
+                </div>
+            </div>
+            <div style="margin-top:8px; display:flex; gap:6px; justify-content:center; flex-wrap:wrap;">
+                <button class="btn btn-secondary" style="padding:4px 12px; font-size:12px;" onclick="downloadPNG('${svgId}', '${barcode}')">📥 PNG</button>
+                <button class="btn btn-secondary" style="padding:4px 12px; font-size:12px;" onclick="downloadQR('${barcode}')">📱 QR</button>
+                <button class="btn btn-danger" style="padding:4px 12px; font-size:12px; background:#c0392b; color:white;" onclick="deleteBarcode('${barcode}')">🗑️ Delete</button>
+                <button class="btn btn-secondary" style="padding:4px 12px; font-size:12px;" onclick="editBarcode('${barcode}')">✏️ Edit</button>
+            </div>
+        `;
+        container.appendChild(div);
+        
         try {
             JsBarcode(`#${svgId}`, barcode, {
                 format: 'CODE128',

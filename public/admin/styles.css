@@ -99,3 +99,30 @@ input:focus, select:focus { outline: none; border-color: #D4AF37; }
     padding: 40px;
     color: #888;
 }
+.barcode-item {
+    background: white;
+    border: 1px solid #eee;
+    border-radius: 16px;
+    padding: 16px;
+    text-align: center;
+    transition: 0.2s;
+}
+.barcode-item:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.barcode-item svg {
+    max-width: 100%;
+    height: auto;
+}
+.barcode-item .code {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    background: #f0ebe0;
+    padding: 4px 12px;
+    border-radius: 30px;
+    display: inline-block;
+    margin-top: 8px;
+}
+.barcode-item img {
+    background: white;
+}
