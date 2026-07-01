@@ -183,24 +183,21 @@ window.downloadPNG = async function(svgId, barcode) {
 };
 
 // ============================================
-// DOWNLOAD QR (dynamic from config)
+// DOWNLOAD QR (points to backend verify-public.html)
 // ============================================
 window.downloadQR = async function(barcode) {
-    const API_BASE = getConfig().API_BASE;
-    try {
-        const res = await fetch(`${API_BASE}/image/${barcode}/qr`);
-        const data = await res.json();
-        if (data.success && data.image) {
-            const link = document.createElement('a');
-            link.href = data.image;
-            link.download = `${barcode}-qr.png`;
-            link.click();
-            return;
-        }
-        fallbackDownloadQR(barcode);
-    } catch (err) {
-        fallbackDownloadQR(barcode);
-    }
+    // Use BACKEND_URL from config
+    const config = window.LUBAN_CONFIG || {
+        BACKEND_URL: 'https://luban-backend.vercel.app'
+    };
+    const baseUrl = config.BACKEND_URL + '/verify-public.html';
+    const url = `${baseUrl}?barcode=${encodeURIComponent(barcode)}`;
+    const qrApi = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}`;
+    
+    const link = document.createElement('a');
+    link.href = qrApi;
+    link.download = `${barcode}-qr.png`;
+    link.click();
 };
 
 // ============================================
@@ -239,19 +236,21 @@ function fallbackDownloadPNG(svgId, barcode) {
 }
 
 // ============================================
-// FALLBACK QR (uses BACKEND_URL from config)
+// FALLBACK QR (points to backend verify-public.html)
 // ============================================
 function fallbackDownloadQR(barcode) {
-    const config = getConfig();
+    const config = window.LUBAN_CONFIG || {
+        BACKEND_URL: 'https://luban-backend.vercel.app'
+    };
     const baseUrl = config.BACKEND_URL + '/verify-public.html';
     const url = `${baseUrl}?barcode=${encodeURIComponent(barcode)}`;
     const qrApi = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}`;
+    
     const link = document.createElement('a');
     link.href = qrApi;
     link.download = `${barcode}-qr.png`;
     link.click();
 }
-
 // ============================================
 // DELETE FUNCTIONS
 // ============================================

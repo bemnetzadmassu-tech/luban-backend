@@ -1,3 +1,4 @@
+// public/config.js
 (function() {
     const DEFAULTS = {
         API_BASE: 'https://luban-backend.vercel.app/api',
