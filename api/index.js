@@ -48,6 +48,7 @@ const exportPosFeedHandler = require('./export-pos-feed');
 const deleteHandler = require('./delete');
 const deleteAllHandler = require('./delete').deleteAll;
 const updateHandler = require('./update');
+const getImageHandler = require('./get-image');
 
 // ============================================
 // DEBUG: CHECK HANDLER TYPES
@@ -63,6 +64,7 @@ console.log('exportPosFeedHandler:', typeof exportPosFeedHandler);
 console.log('deleteHandler:', typeof deleteHandler);
 console.log('deleteAllHandler:', typeof deleteAllHandler);
 console.log('updateHandler:', typeof updateHandler);
+console.log('getImageHandler:', typeof getImageHandler);
 console.log('✅ All handlers loaded');
 
 // ============================================
@@ -105,6 +107,7 @@ app.get('/api/export-pos-feed', exportPosFeedHandler);
 app.put('/api/barcode/:barcode', updateHandler);
 app.delete('/api/barcode/:barcode', deleteHandler);
 app.delete('/api/barcodes/all', deleteAllHandler);
+app.get('/api/image/:barcode/:type', getImageHandler);
 
 // ============================================
 // CATCH-ALL FOR SPA / FALLBACK

@@ -8,9 +8,6 @@ if (!token) {
     window.location.href = '/admin/login.html';
 }
 
-// ============================================
-// LOGOUT
-// ============================================
 function logout() {
     localStorage.removeItem('token');
     window.location.href = '/admin/login.html';
@@ -79,7 +76,7 @@ async function loadDashboard() {
 }
 
 // ============================================
-// GENERATE BARCODES (with PNG, QR, Delete)
+// GENERATE BARCODES
 // ============================================
 async function loadGenerate() {
     document.getElementById('page-generate').innerHTML = `
@@ -90,6 +87,14 @@ async function loadGenerate() {
                 <div class="form-group"><label>Start</label><input type="number" id="startNum" value="1" /></div>
                 <div class="form-group"><label>End</label><input type="number" id="endNum" value="10" /></div>
                 <div class="form-group"><label>Pad Zeros</label><input type="number" id="padZeros" value="5" /></div>
+                <div class="form-group"><label>Weight (g)</label><input type="number" id="weight" value="250" /></div>
+                <div class="form-group"><label>Roast Level</label>
+                    <select id="roast">
+                        <option value="LR">Light Roast</option>
+                        <option value="MR" selected>Medium Roast</option>
+                        <option value="DR">Dark Roast</option>
+                    </select>
+                </div>
             </div>
             <button class="btn" onclick="generateBarcodes()">🚀 Generate</button>
             <div id="genResult"></div>
@@ -102,11 +107,15 @@ async function loadGenerate() {
         const start = parseInt(document.getElementById('startNum').value);
         const end = parseInt(document.getElementById('endNum').value);
         const pad = parseInt(document.getElementById('padZeros').value);
+        const weight = parseInt(document.getElementById('weight').value);
+        const roast = document.getElementById('roast').value;
+
         if (isNaN(start) || isNaN(end) || start > end) { alert('Invalid range'); return; }
+
         const res = await fetch(`${API_BASE}/generate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ prefix, start, end, pad })
+            body: JSON.stringify({ prefix, start, end, pad, weight, roast })
         });
         const data = await res.json();
         document.getElementById('genResult').innerHTML = data.success ? `<div class="alert alert-success">✅ ${data.count} generated</div>` : `<div class="alert alert-error">❌ ${data.error}</div>`;
@@ -115,7 +124,7 @@ async function loadGenerate() {
 }
 
 // ============================================
-// DISPLAY BARCODES WITH PNG, QR, DELETE
+// DISPLAY BARCODES WITH DOWNLOAD FROM DB
 // ============================================
 function displayBarcodes(prefix, start, end, pad) {
     const container = document.getElementById('barcodePreview');
@@ -153,9 +162,57 @@ function displayBarcodes(prefix, start, end, pad) {
 }
 
 // ============================================
-// DOWNLOAD PNG
+// DOWNLOAD PNG FROM DATABASE
 // ============================================
-window.downloadPNG = function(svgId, filename) {
+window.downloadPNG = async function(svgId, barcode) {
+    try {
+        const res = await fetch(`${API_BASE}/image/${barcode}/png`);
+        const data = await res.json();
+
+        if (data.success && data.image) {
+            const link = document.createElement('a');
+            link.href = data.image;
+            link.download = `${barcode}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            return;
+        }
+        fallbackDownloadPNG(svgId, barcode);
+    } catch (err) {
+        console.error('Download error:', err);
+        fallbackDownloadPNG(svgId, barcode);
+    }
+};
+
+// ============================================
+// DOWNLOAD QR FROM DATABASE
+// ============================================
+window.downloadQR = async function(barcode) {
+    try {
+        const res = await fetch(`${API_BASE}/image/${barcode}/qr`);
+        const data = await res.json();
+
+        if (data.success && data.image) {
+            const link = document.createElement('a');
+            link.href = data.image;
+            link.download = `${barcode}-qr.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            return;
+        }
+        fallbackDownloadQR(barcode);
+    } catch (err) {
+        console.error('Download error:', err);
+        fallbackDownloadQR(barcode);
+    }
+};
+
+// ============================================
+// FALLBACK: Generate PNG on the fly
+// ============================================
+function fallbackDownloadPNG(svgId, barcode) {
     const svg = document.getElementById(svgId);
     if (!svg) { alert('Barcode not found'); return; }
     const clone = svg.cloneNode(true);
@@ -167,6 +224,7 @@ window.downloadPNG = function(svgId, filename) {
     rect.setAttribute('height', '100%');
     rect.setAttribute('fill', 'white');
     clone.insertBefore(rect, clone.firstChild);
+
     const serializer = new XMLSerializer();
     const svgString = serializer.serializeToString(clone);
     const canvas = document.createElement('canvas');
@@ -174,23 +232,24 @@ window.downloadPNG = function(svgId, filename) {
     const img = new Image();
     const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(svgBlob);
+
     img.onload = function() {
         canvas.width = img.width;
         canvas.height = img.height;
         ctx.drawImage(img, 0, 0);
         URL.revokeObjectURL(url);
         const link = document.createElement('a');
-        link.download = `${filename}.png`;
+        link.download = `${barcode}.png`;
         link.href = canvas.toDataURL('image/png');
         link.click();
     };
     img.src = url;
-};
+}
 
 // ============================================
-// DOWNLOAD QR
+// FALLBACK: Generate QR on the fly
 // ============================================
-window.downloadQR = function(barcode) {
+function fallbackDownloadQR(barcode) {
     const frontendUrl = window.location.origin || 'https://luban-coffee.vercel.app';
     const baseUrl = frontendUrl + '/verify-public.html';
     const url = `${baseUrl}?barcode=${encodeURIComponent(barcode)}`;
@@ -199,7 +258,7 @@ window.downloadQR = function(barcode) {
     link.href = qrApi;
     link.download = `${barcode}-qr.png`;
     link.click();
-};
+}
 
 // ============================================
 // DELETE BARCODE
@@ -388,7 +447,7 @@ async function loadAssign() {
             <div id="registerResult"></div>
         </div>
     `;
-    window.registerBatch = async function() { /* ... */ };
+    window.registerBatch = async function() { /* ... full implementation from previous chat */ };
 }
 
 // ============================================
@@ -419,7 +478,7 @@ async function loadVerify() {
 }
 
 // ============================================
-// ALL BARCODES (with Edit, Delete, PNG, QR)
+// ALL BARCODES
 // ============================================
 async function loadBarcodes() {
     const res = await fetch(`${API_BASE}/barcodes?limit=100`, {
@@ -429,7 +488,10 @@ async function loadBarcodes() {
     const data = await res.json();
     let rows = data.data.map((b, index) => `
         <tr>
-            <td>${b.barcode_value}</td>
+            <td>
+                <svg id="list-${index}" style="height:40px;"></svg>
+                <div style="font-size:11px; margin-top:4px;">${b.barcode_value}</div>
+            </td>
             <td>${b.origin || '-'}</td>
             <td>${b.batch_info || '-'}</td>
             <td>${b.is_sold ? '✅ Sold' : 'Available'}</td>
@@ -453,22 +515,18 @@ async function loadBarcodes() {
             <button class="btn btn-secondary" onclick="downloadPOSFeed()">📊 Supermarket Feed</button>
         </div>
     `;
-    // Generate barcodes in list
     data.data.forEach((b, index) => {
         const svgId = `list-${index}`;
         setTimeout(() => {
-            const container = document.querySelector(`#${svgId}`);
-            if (container) {
-                try {
-                    JsBarcode(`#${svgId}`, b.barcode_value, {
-                        format: 'CODE128',
-                        width: 1.5,
-                        height: 40,
-                        displayValue: false,
-                        margin: 4
-                    });
-                } catch(e) {}
-            }
+            try {
+                JsBarcode(`#${svgId}`, b.barcode_value, {
+                    format: 'CODE128',
+                    width: 1.5,
+                    height: 40,
+                    displayValue: false,
+                    margin: 4
+                });
+            } catch(e) {}
         }, 100);
     });
 }
