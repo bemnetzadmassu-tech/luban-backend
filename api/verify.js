@@ -7,11 +7,28 @@ module.exports = async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT 
-                barcode_value, origin, batch_info, weight_grams, roast_level,
-                is_sold, is_revoked, verification_count, created_at,
-                farm_name, farmer_name, plot_name, latitude, longitude,
-                harvest_date, processing_method, certificates, country, region, altitude
-            FROM serialized_barcodes WHERE barcode_value = $1
+                barcode_value, 
+                origin, 
+                batch_info, 
+                weight_grams, 
+                roast_level,
+                is_sold, 
+                is_revoked, 
+                verification_count, 
+                created_at,
+                COALESCE(farm_name, '') as farm_name,
+                COALESCE(farmer_name, '') as farmer_name,
+                COALESCE(plot_name, '') as plot_name,
+                COALESCE(latitude, 0) as latitude,
+                COALESCE(longitude, 0) as longitude,
+                COALESCE(harvest_date, NULL) as harvest_date,
+                COALESCE(processing_method, '') as processing_method,
+                COALESCE(certificates, '{}') as certificates,
+                COALESCE(country, 'Ethiopia') as country,
+                COALESCE(region, '') as region,
+                COALESCE(altitude, 0) as altitude
+            FROM serialized_barcodes 
+            WHERE barcode_value = $1
         `, [barcode]);
 
         if (result.rows.length === 0) {
@@ -49,21 +66,21 @@ module.exports = async (req, res) => {
                 roast: row.roast_level,
                 is_sold: row.is_sold,
                 verified_count: row.verification_count + 1,
-                farm_name: row.farm_name,
-                farmer_name: row.farmer_name,
-                plot_name: row.plot_name,
-                latitude: row.latitude,
-                longitude: row.longitude,
-                harvest_date: row.harvest_date,
-                processing_method: row.processing_method,
+                farm_name: row.farm_name || '',
+                farmer_name: row.farmer_name || '',
+                plot_name: row.plot_name || '',
+                latitude: row.latitude || 0,
+                longitude: row.longitude || 0,
+                harvest_date: row.harvest_date || null,
+                processing_method: row.processing_method || '',
                 certificates: row.certificates || [],
                 country: row.country || 'Ethiopia',
-                region: row.region,
-                altitude: row.altitude
+                region: row.region || '',
+                altitude: row.altitude || 0
             }
         });
     } catch (err) {
-        console.error(err);
+        console.error('Verify error:', err);
         res.status(500).json({ error: 'Database error' });
     }
 };
