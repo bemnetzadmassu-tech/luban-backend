@@ -1,6 +1,8 @@
 const pool = require('./_lib/db');
 const auth = require('./_lib/auth');
 const Joi = require('joi');
+const { createCanvas } = require('canvas');
+const JsBarcode = require('jsbarcode');
 
 const schema = Joi.object({
     prefix: Joi.string().required(),
@@ -11,22 +13,34 @@ const schema = Joi.object({
     roast: Joi.string().default('MR'),
 });
 
-// Helper: Generate PNG from external API (no canvas needed)
+// Helper: Generate barcode PNG
 async function generateBarcodePNG(barcode) {
-    const apiUrl = `https://barcode.tec-it.com/barcode.ashx?data=${encodeURIComponent(barcode)}&code=Code128&dpi=120`;
-    const response = await fetch(apiUrl);
-    const buffer = await response.arrayBuffer();
-    return `data:image/png;base64,${Buffer.from(buffer).toString('base64')}`;
+    const canvas = createCanvas(300, 100);
+    JsBarcode(canvas, barcode, {
+        format: 'CODE128',
+        width: 2,
+        height: 80,
+        displayValue: true,
+        font: 'monospace',
+        fontSize: 20,
+        margin: 10,
+    });
+    return canvas.toDataURL('image/png');
 }
 
-// Helper: Generate QR code PNG
+// ============================================
+// FIXED: Generate QR code PNG using BACKEND_URL
+// ============================================
 async function generateQRPNG(barcode) {
-    const baseUrl = process.env.FRONTEND_URL || 'https://luban-coffee.vercel.app';
-    const url = `${baseUrl}/verify-public.html?barcode=${encodeURIComponent(barcode)}`;
+    // Use BACKEND_URL from environment variable (set in Vercel)
+    const backendUrl = process.env.BACKEND_URL || 'https://luban-backend.vercel.app';
+    const verifyPage = '/verify-public.html';
+    const url = `${backendUrl}${verifyPage}?barcode=${encodeURIComponent(barcode)}`;
     const qrApi = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}`;
     const response = await fetch(qrApi);
     const buffer = await response.arrayBuffer();
-    return `data:image/png;base64,${Buffer.from(buffer).toString('base64')}`;
+    const base64 = Buffer.from(buffer).toString('base64');
+    return `data:image/png;base64,${base64}`;
 }
 
 module.exports = async (req, res) => {
@@ -53,7 +67,7 @@ module.exports = async (req, res) => {
                     [barcode, weight, roast]
                 );
 
-                // Generate and store PNG
+                // Generate and store PNG in barcode_media
                 const pngData = await generateBarcodePNG(barcode);
                 await client.query(
                     `INSERT INTO barcode_media (barcode_value, media_type, image_data)
@@ -62,7 +76,7 @@ module.exports = async (req, res) => {
                     [barcode, pngData]
                 );
 
-                // Generate and store QR
+                // Generate and store QR in barcode_media
                 const qrData = await generateQRPNG(barcode);
                 await client.query(
                     `INSERT INTO barcode_media (barcode_value, media_type, image_data)
