@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Login – Luban Coffee</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #1a3a32, #0b2b26);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+        }
+        .login-card {
+            background: white;
+            padding: 40px 30px;
+            border-radius: 32px;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+        .login-card h1 {
+            text-align: center;
+            color: #1a3a32;
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+        .login-card h1 span {
+            color: #D4AF37;
+        }
+        .login-card p {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #1a3a32;
+        }
+        input {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 1rem;
+            border: 2px solid #ddd;
+            border-radius: 40px;
+            transition: 0.2s;
+        }
+        input:focus {
+            border-color: #D4AF37;
+            outline: none;
+        }
+        .login-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #D4AF37, #B8860B);
+            color: #1a1a2e;
+            border: none;
+            border-radius: 40px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .login-btn:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.05);
+        }
+        .login-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        #error {
+            color: #e74c3c;
+            text-align: center;
+            margin-top: 15px;
+            display: none;
+        }
+        #loading {
+            color: #D4AF37;
+            text-align: center;
+            margin-top: 15px;
+            display: none;
+        }
+        .footer-text {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #999;
+        }
+        .footer-text a {
+            color: #D4AF37;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <h1>☕ <span>Luban</span> Coffee</h1>
+        <p>Admin Panel</p>
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" placeholder="Enter admin password" autofocus />
+        </div>
+        <button class="login-btn" id="loginBtn">Login</button>
+        <div id="loading">⏳ Logging in...</div>
+        <div id="error"></div>
+        <div class="footer-text">
+            <a href="/">← Back to Home</a>
+        </div>
+    </div>
+
+    <!-- Load config first -->
+    <script src="../config.js"></script>
+    <script>
+        const API_BASE = window.LUBAN_CONFIG?.API_BASE || '/api';
+        const loginBtn = document.getElementById('loginBtn');
+        const passwordInput = document.getElementById('password');
+        const errorDiv = document.getElementById('error');
+        const loadingDiv = document.getElementById('loading');
+
+        // Check if already logged in
+        if (localStorage.getItem('token')) {
+            window.location.href = '/admin/dashboard.html';
+        }
+
+        async function login() {
+            const password = passwordInput.value.trim();
+
+            // Clear previous errors
+            errorDiv.style.display = 'none';
+            errorDiv.textContent = '';
+
+            // Validate
+            if (!password) {
+                errorDiv.textContent = 'Please enter the password.';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            // Show loading state
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'Logging in...';
+            loadingDiv.style.display = 'block';
+
+            try {
+                const res = await fetch(`${API_BASE}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+
+                const data = await res.json();
+
+                if (data.token) {
+                    // Store token
+                    localStorage.setItem('token', data.token);
+                    // Redirect to dashboard
+                    window.location.href = '/admin/dashboard.html';
+                } else {
+                    errorDiv.textContent = data.error || 'Invalid password. Please try again.';
+                    errorDiv.style.display = 'block';
+                }
+            } catch (err) {
+                errorDiv.textContent = 'Network error. Please check your connection and try again.';
+                errorDiv.style.display = 'block';
+                console.error('Login error:', err);
+            } finally {
+                // Reset button state
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'Login';
+                loadingDiv.style.display = 'none';
+            }
+        }
+
+        // Event listeners
+        loginBtn.addEventListener('click', login);
+        passwordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') login();
+        });
+
+        // Focus on password field
+        passwordInput.focus();
+    </script>
+</body>
+</html>
