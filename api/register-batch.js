@@ -1,4 +1,4 @@
- const pool = require('./_lib/db');
+const pool = require('./_lib/db');
 const auth = require('./_lib/auth');
 const Joi = require('joi');
 
@@ -33,9 +33,27 @@ module.exports = async (req, res) => {
         try {
             await client.query('BEGIN');
             let updated = 0;
+
             for (let i = start; i <= end; i++) {
                 const num = String(i).padStart(pad, '0');
                 const barcode = prefix + num;
+
+                // Check if barcode exists
+                const exists = await client.query(
+                    'SELECT barcode_value FROM serialized_barcodes WHERE barcode_value = $1',
+                    [barcode]
+                );
+
+                if (exists.rows.length === 0) {
+                    // Create barcode if it doesn't exist
+                    await client.query(
+                        `INSERT INTO serialized_barcodes (barcode_value)
+                         VALUES ($1)`,
+                        [barcode]
+                    );
+                }
+
+                // Update with EUDR data
                 const result = await client.query(`
                     UPDATE serialized_barcodes SET
                         origin = $1,
@@ -50,7 +68,8 @@ module.exports = async (req, res) => {
                         certificates = $10,
                         country = $11,
                         region = $12,
-                        altitude = $13
+                        altitude = $13,
+                        updated_at = CURRENT_TIMESTAMP
                     WHERE barcode_value = $14
                 `, [
                     traceData.origin,
@@ -68,18 +87,30 @@ module.exports = async (req, res) => {
                     traceData.altitude,
                     barcode
                 ]);
-                updated += result.rowCount;
+
+                if (result.rowCount > 0) updated++;
             }
+
             await client.query('COMMIT');
+
+            // Log user activity
+            const userId = req.user?.admin ? 'admin' : 'system';
+            await client.query(
+                `INSERT INTO user_activity (user_id, action, details)
+                 VALUES ($1, 'register_batch', $2)`,
+                [userId, JSON.stringify({ prefix, start, end, origin: traceData.origin })]
+            );
+
             res.json({
                 success: true,
                 count: updated,
-                message: `Batch registered for ${updated} barcodes`
+                message: `Batch registered for ${updated} barcodes`,
+                range: `${prefix}${String(start).padStart(pad, '0')} – ${prefix}${String(end).padStart(pad, '0')}`
             });
         } catch (err) {
             await client.query('ROLLBACK');
             console.error(err);
-            res.status(500).json({ error: 'Database error' });
+            res.status(500).json({ error: err.message });
         } finally {
             client.release();
         }

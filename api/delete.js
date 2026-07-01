@@ -44,7 +44,6 @@ module.exports.deleteAll = async (req, res) => {
         try {
             const result = await pool.query('DELETE FROM serialized_barcodes RETURNING barcode_value');
             
-            // Log user activity
             const userId = req.user?.admin ? 'admin' : 'unknown';
             await pool.query(
                 `INSERT INTO user_activity (user_id, action, details)

@@ -50,9 +50,6 @@ const deleteAllHandler = require('./delete').deleteAll;
 const updateHandler = require('./update');
 const getImageHandler = require('./get-image');
 
-// ============================================
-// DEBUG: CHECK HANDLER TYPES
-// ============================================
 console.log('🔍 Checking handler types:');
 console.log('generateHandler:', typeof generateHandler);
 console.log('registerBatchHandler:', typeof registerBatchHandler);
@@ -120,7 +117,4 @@ app.get('*', (req, res) => {
     }
 });
 
-// ============================================
-// EXPORT FOR VERCEL
-// ============================================
 module.exports = app;
